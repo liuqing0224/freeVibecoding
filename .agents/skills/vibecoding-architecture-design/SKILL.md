@@ -79,6 +79,6 @@ After the design is complete, continue with every matching implementation skill:
 - Backend work: `vibecoding-backend-module`
 - Frontend work: `vibecoding-frontend-module`
 - Full-stack work: `vibecoding-fullstack-module`
-- Feature or bugfix implementation: `superpowers:test-driven-development`
-- Unexpected failures: `superpowers:systematic-debugging`
+- Feature or bugfix implementation: matching `vibecoding-*` module skill with a test-first loop
+- Unexpected failures: inspect the failure systematically before editing
 - Completion gate: `vibecoding-verify`

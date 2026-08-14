@@ -4,33 +4,18 @@ This is a Codex-friendly fullstack template. Two independent sub-projects:
 `frontend/` (Vue 3 + TypeScript + Less + Vite) and `backend/`
 (Node.js + Fastify + TypeScript + zod + SQLite/Postgres).
 
-## Superpowers (project install)
+## Project skills
 
-This repo vendors [Superpowers](https://github.com/obra/superpowers) for agent workflows.
-After clone, run once:
-
-```bash
-bash scripts/install-superpowers.sh
-```
-
-That clones `vendor/superpowers/` and links Codex skills to
-`.agents/skills/superpowers/`. Cursor picks up the plugin via
-[`.cursor-plugin/marketplace.json`](.cursor-plugin/marketplace.json) (Team Marketplace)
-or `/add-plugin superpowers` from the Cursor marketplace panel.
-
-**Skill priority:** instructions in this file override Superpowers defaults.
 Start with `$vibecoding-codex-workflow` for project work, then load the
-matching Superpowers and module skills it routes to. Superpowers handles
-general workflow (brainstorming, TDD, debugging, planning). Repo-specific
-architecture rules live in `$vibecoding-*` skills below.
+matching repository skill it routes to. Architecture, module implementation,
+debugging and verification rules all live in `.agents/skills/vibecoding-*`.
 
 | User intent | Skill to invoke |
 |-------------|-----------------|
 | Any project development / analysis / verification task | `$vibecoding-codex-workflow` first |
 | Architecture design before coding | `$vibecoding-architecture-design` |
-| Plan / design before coding | Superpowers `brainstorming`, `writing-plans` |
-| Implement with TDD | Superpowers `test-driven-development` |
-| Debug unexpected failures | Superpowers `systematic-debugging` |
+| Plan / design before coding | `$vibecoding-architecture-design` |
+| Implement or debug a module | Matching `$vibecoding-*-module` skill |
 | New or edit backend module (DB, API, repository) | `$vibecoding-backend-module` |
 | New or edit frontend module (api client, pages) | `$vibecoding-frontend-module` |
 | New full-stack feature module (both sides) | `$vibecoding-fullstack-module` |
@@ -51,8 +36,8 @@ Rules:
    `.agents/skills/vibecoding-architecture-design/SKILL.md` using current code
    structure as evidence.
 3. Follow skill checklists in order; do not skip steps.
-4. For feature or bugfix work, use Superpowers TDD/debugging flow plus the
-   matching project module skill.
+4. For feature or bugfix work, use a test-first loop plus the matching project
+   module skill.
 5. Run `bash .agents/skills/vibecoding-verify/scripts/verify.sh`; exit code
    must be `0` before completion.
 6. If verify fails, fix `[ARCH]` errors and re-run until `verify: ALL PASSED`.
@@ -88,6 +73,8 @@ Codex discovers skills from `.agents/skills/` when launched inside this reposito
    `fetch` directly from views, components, or stores.
 6. **Backend repositories use the `db` interface.** Never import a driver
    (`better-sqlite3`, `pg`) outside `backend/src/db/adapters/`.
+7. **Every source file stays under 300 lines.** Split by responsibility before
+   a file reaches the limit; do not combine unrelated business domains.
 
 ## Naming
 

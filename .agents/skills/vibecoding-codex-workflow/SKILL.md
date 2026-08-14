@@ -22,14 +22,14 @@ any narrower project skill.
 | Task | Required skills |
 |------|-----------------|
 | Architecture design before coding | `vibecoding-architecture-design` |
-| Plan or design before code | `vibecoding-architecture-design`, then `superpowers:brainstorming` and `superpowers:writing-plans` when a written implementation plan is needed |
-| Implement a feature, bugfix, or refactor | `vibecoding-architecture-design`, then `superpowers:test-driven-development` plus the matching `vibecoding-*` module skill |
-| Debug unexpected behavior or failing tests | `superpowers:systematic-debugging`, then the matching module skill after root cause is known |
+| Plan or design before code | `vibecoding-architecture-design` |
+| Implement a feature, bugfix, or refactor | `vibecoding-architecture-design`, then the matching `vibecoding-*` module skill with a test-first loop |
+| Debug unexpected behavior or failing tests | Inspect the failure systematically, then load the matching module skill after root cause is known |
 | Backend module, API, repository, schema, migration | `vibecoding-backend-module` |
 | Frontend module, API client, store, routes, views | `vibecoding-frontend-module` |
 | Full-stack feature spanning backend and frontend | `vibecoding-fullstack-module` |
 | Verify architecture, contracts, lint, or readiness | `vibecoding-verify` |
-| Create or update skills | `skill-creator`; use `superpowers:writing-skills` when changing reusable skill behavior |
+| Create or update skills | `skill-creator` |
 
 If multiple rows match, use all of them. Process skills decide how to work;
 project skills define repository architecture.

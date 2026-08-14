@@ -10,6 +10,7 @@
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
+    "test": "tsx --test src/modules/workspace/*.test.ts",
     "format": "prettier --write \"src/**/*.{ts,json}\"",
     "db:migrate": "tsx src/db/migrator.ts up",
     "db:migrate:status": "tsx src/db/migrator.ts status"

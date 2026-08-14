@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 
 import { todoRoutes } from '@/modules/todo'
+import { workspaceRoutes } from '@/modules/workspace'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -11,8 +12,9 @@ const routes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'home',
-        redirect: { name: 'todo-list' },
+        redirect: { name: 'workspace-projects' },
       },
+      ...workspaceRoutes,
       ...todoRoutes,
     ],
   },
