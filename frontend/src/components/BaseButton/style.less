@@ -5,10 +5,10 @@
   gap: @space-xs;
   border: 1px solid transparent;
   border-radius: @radius-md;
-  font-weight: 500;
+  font-weight: 700;
   cursor: pointer;
   transition: background-color @transition-fast, border-color @transition-fast,
-    color @transition-fast;
+    color @transition-fast, transform @transition-fast, box-shadow @transition-fast;
   user-select: none;
 
   &--block {
@@ -34,12 +34,16 @@
 
   &--primary {
     background-color: @color-primary;
-    color: @color-text-inverse;
+    color: @color-text;
+    border-color: @color-border-strong;
+    box-shadow: 2px 2px 0 @color-border-strong;
     &:hover:not(:disabled) {
       background-color: @color-primary-hover;
     }
     &:active:not(:disabled) {
       background-color: @color-primary-active;
+      transform: translate(2px, 2px);
+      box-shadow: none;
     }
   }
   &--secondary {
@@ -47,8 +51,8 @@
     color: @color-text;
     border-color: @color-border-strong;
     &:hover:not(:disabled) {
-      border-color: @color-primary;
-      color: @color-primary;
+      border-color: @color-border-strong;
+      background-color: @color-bg-muted;
     }
   }
   &--danger {
@@ -68,8 +72,9 @@
 
   &:disabled,
   &--loading {
-    opacity: 0.6;
+    opacity: 0.48;
     cursor: not-allowed;
+    box-shadow: none;
   }
 
   &__spinner {

@@ -8,7 +8,7 @@ const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
     PORT: z.coerce.number().int().positive().default(3000),
-    HOST: z.string().default('0.0.0.0'),
+    HOST: z.string().default('127.0.0.1'),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
 
     DB_DIALECT: z.enum(['sqlite', 'postgres']).default('sqlite'),
