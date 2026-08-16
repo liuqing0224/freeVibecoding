@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { buildTodoList } from './workspace.todo-list'
+import { scoreDocument } from './workspace.document-score'
 import type { WorkspaceDocument } from './workspace.types'
 
 function document(type: WorkspaceDocument['type'], content: Record<string, unknown>): WorkspaceDocument {
-  return { id: type, projectId: 'p1', type, content, completeness: 100, markdown: '', updatedAt: new Date(0).toISOString() }
+  return { id: type, projectId: 'p1', type, content, completeness: 100, quality: scoreDocument(type, content, ''), markdown: '', updatedAt: new Date(0).toISOString() }
 }
 
 const documents: WorkspaceDocument[] = [

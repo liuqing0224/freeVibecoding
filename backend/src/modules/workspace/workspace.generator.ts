@@ -11,7 +11,9 @@ import { validateTemplate, writeGeneratedFiles } from './workspace.generator.fil
 
 const exec = promisify(execFile)
 
-export async function generateRepository(rootInput: string, directoryName: string, project: Workspace, documents: WorkspaceDocument[]) {
+interface RepositoryOptions { remoteRepositoryUrl?: string }
+
+export async function generateRepository(rootInput: string, directoryName: string, project: Workspace, documents: WorkspaceDocument[], options: RepositoryOptions = {}) {
   const sourceRoot = await locateTemplateRoot(process.cwd())
   await fs.mkdir(rootInput, { recursive: true })
   const root = await fs.realpath(rootInput); const target = path.resolve(root, directoryName)
@@ -27,6 +29,7 @@ export async function generateRepository(rootInput: string, directoryName: strin
     await validateTemplate(temporary)
     await exec('git', ['init'], { cwd: temporary }); await exec('git', ['add', '.'], { cwd: temporary })
     await exec('git', ['-c', 'user.name=Vibe Coding Workbench', '-c', 'user.email=workbench@local', 'commit', '-m', 'chore: initialize project template'], { cwd: temporary })
+    if (options.remoteRepositoryUrl) await exec('git', ['remote', 'add', 'origin', options.remoteRepositoryUrl], { cwd: temporary })
     const { stdout } = await exec('git', ['rev-parse', 'HEAD'], { cwd: temporary })
     await fs.rename(temporary, target)
     return { targetPath: target, commitHash: stdout.trim() }

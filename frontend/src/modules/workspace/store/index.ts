@@ -17,10 +17,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   async function loadProject(id: string) { const [project, docs] = await Promise.all([workspaceApi.getProject(id), workspaceApi.listDocuments(id)]); currentProject.value = project; documents.value = docs; return project }
   async function saveDocument(id: string, type: DocumentType, input: DocumentUpdateInput) {
     const saved = await workspaceApi.saveDocument(id, type, input)
-    documents.value = documents.value.map((item) => item.type === type ? saved : item)
+    if (type === 'prd') documents.value = await workspaceApi.listDocuments(id)
+    else documents.value = documents.value.map((item) => item.type === type ? saved : item)
     if (currentProject.value && documents.value.length) currentProject.value.completeness = Math.round(documents.value.reduce((sum, item) => sum + item.completeness, 0) / documents.value.length)
     return saved
   }
+  async function syncTechnicalDocuments(id: string) {
+    const result = await workspaceApi.syncTechnicalDocuments(id)
+    const synced = new Map(result.documents.map((document) => [document.type, document]))
+    documents.value = documents.value.map((document) => synced.get(document.type) ?? document)
+    if (currentProject.value && documents.value.length) currentProject.value.completeness = Math.round(documents.value.reduce((sum, item) => sum + item.completeness, 0) / documents.value.length)
+    return result
+  }
   async function removeProject(id: string) { await workspaceApi.removeProject(id); projects.value = projects.value.filter((project) => project.id !== id) }
-  return { bootstrap, projects, currentProject, documents, loading, error, loadBootstrap, loadProjects, createProject, loadProject, saveDocument, removeProject }
+  return { bootstrap, projects, currentProject, documents, loading, error, loadBootstrap, loadProjects, createProject, loadProject, saveDocument, syncTechnicalDocuments, removeProject }
 })

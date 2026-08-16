@@ -14,7 +14,7 @@ export async function writeNestBackend(target: string, project: Workspace) {
     }, null, 2)}\n`,
     'nest-cli.json': `${JSON.stringify({ collection: '@nestjs/schematics', sourceRoot: 'src' }, null, 2)}\n`,
     'tsconfig.json': `${JSON.stringify({ compilerOptions: { module: 'commonjs', declaration: true, removeComments: true, emitDecoratorMetadata: true, experimentalDecorators: true, allowSyntheticDefaultImports: true, target: 'ES2022', sourceMap: true, outDir: './dist', baseUrl: './', incremental: true, strict: true, skipLibCheck: true }, include: ['src/**/*.ts'] }, null, 2)}\n`,
-    'eslint.config.mjs': `import eslint from '@eslint/js'\nimport tseslint from 'typescript-eslint'\nexport default tseslint.config(eslint.configs.recommended, ...tseslint.configs.recommended, { ignores: ['dist/**'], rules: { '@typescript-eslint/no-explicit-any': 'off' } })\n`,
+    'eslint.config.mjs': `import eslint from '@eslint/js'\nimport tseslint from 'typescript-eslint'\nexport default tseslint.config({ ignores: ['dist/**'] }, eslint.configs.recommended, ...tseslint.configs.recommended, { rules: { '@typescript-eslint/no-explicit-any': 'off' } })\n`,
     '.env.example': 'PORT=3000\nHOST=127.0.0.1\nDB_DIALECT=sqlite\nDATABASE_URL=\n',
     'src/main.ts': mainSource,
     'src/app.module.ts': `import { Module } from '@nestjs/common'\nimport { HealthModule } from '${healthModuleImport}'\n\n@Module({ imports: [HealthModule] })\nexport class AppModule {}\n`,

@@ -29,7 +29,8 @@ export async function scanCodingAgents() {
 }
 
 function promptFor(project: Workspace, documents: WorkspaceDocument[], input: InterviewInput) {
-  const allowedFields = Object.fromEntries(documentDefinitions.map((definition) => [definition.type, definition.fields.map((field) => field.id)]))
+  const selectedDefinitions = input.focusDocumentType ? documentDefinitions.filter((definition) => definition.type === input.focusDocumentType) : documentDefinitions
+  const allowedFields = Object.fromEntries(selectedDefinitions.map((definition) => [definition.type, definition.fields.map((field) => field.id)]))
   const shorten = (value: unknown): unknown => {
     if (typeof value === 'string') return value.length > 800 ? `${value.slice(0, 800)}…` : value
     if (Array.isArray(value)) return value.slice(0, 20).map(shorten)
@@ -37,7 +38,9 @@ function promptFor(project: Workspace, documents: WorkspaceDocument[], input: In
     return value
   }
   const documentState = Object.fromEntries(documents.map((document) => [document.type, shorten(document.content)]))
-  return `你是面向非研发人员的产研需求访谈助手。只讨论业务并输出 JSON，不执行命令、不修改文件。\n\n项目：${JSON.stringify(project)}\n允许修改的文档字段：${JSON.stringify(allowedFields)}\n当前正式文档：${JSON.stringify(documentState)}\n访谈临时文档（这是后续对话的首要上下文）：\n${input.workingDocument || '# 访谈临时文档\n\n暂无内容'}\n历史对话：${JSON.stringify(input.history)}\n用户本轮输入：${input.message}\n\n每轮最多追问 3 个非技术问题，问题必须直接对应临时文档中的已有事实或待确认项。不要只抛开放问题：把 2–5 个具体、互斥、非技术选项直接写进每个问题文本，使用“A. …；B. …；C. …；也可以补充其他情况”的自然对话格式。选项要根据临时文档中的项目背景生成，不能使用与当前项目无关的通用问题。先依据本轮沟通更新 workingDocument Markdown，分为“已确认信息、业务范围、关键规则、待确认问题”，去重并保留旧结论；已经能确定的正式内容写入 patches，不确定内容不要猜测。严格只输出以下 JSON，不要 Markdown：\n{"reply":"给用户的简明回复","questions":["结合临时文档中已确认的多渠道反馈，首版采用哪种汇集方式？A. 运营手动录入；B. 上传表格导入；C. 直接对接现有系统；也可以补充其他方式。"],"patches":[{"documentType":"prd","fields":{"goal":"新值"}}],"workingDocument":"# 访谈临时文档\\n\\n## 已确认信息\\n..."}`
+  const focused = input.focusDocumentType ? documents.find((document) => document.type === input.focusDocumentType) : undefined
+  const focusContext = focused ? `\n本轮只优化文档：${input.focusDocumentType}\n当前文档完整上下文：${JSON.stringify({ content: focused.content, markdown: focused.markdown.slice(0, 30000), quality: focused.quality })}\n只允许返回 ${input.focusDocumentType} 的补丁，禁止修改其他文档。` : ''
+  return `你是面向非研发人员的产研需求访谈助手。只讨论业务并输出 JSON，不执行命令、不修改文件。\n\n项目：${JSON.stringify(project)}\n允许修改的文档字段：${JSON.stringify(allowedFields)}\n当前正式文档：${JSON.stringify(documentState)}${focusContext}\n访谈临时文档（这是后续对话的首要上下文）：\n${input.workingDocument || '# 访谈临时文档\n\n暂无内容'}\n历史对话：${JSON.stringify(input.history)}\n用户本轮输入：${input.message}\n\n每轮最多追问 3 个非技术问题，问题必须直接对应当前正式文档、评分建议、临时文档中的已有事实或待确认项。不要只抛开放问题：把 2–5 个具体、互斥、非技术选项直接写进每个问题文本，使用“A. …；B. …；C. …；也可以补充其他情况”的自然对话格式。选项要根据当前文档中的实际内容生成，不能使用与当前项目无关的通用问题。先依据本轮沟通更新 workingDocument Markdown，分为“已确认信息、业务范围、关键规则、待确认问题”，去重并保留旧结论；已经能确定的正式内容写入 patches，不确定内容不要猜测。严格只输出以下 JSON，不要 Markdown：\n{"reply":"给用户的简明回复","questions":["结合当前文档中已有规则，还需要确认哪种处理方式？A. 方案一；B. 方案二；C. 方案三；也可以补充其他方式。"],"patches":[{"documentType":"prd","fields":{"goal":"新值"}}],"workingDocument":"# 访谈临时文档\\n\\n## 已确认信息\\n..."}`
 }
 
 function parseAgentJson(output: string) {
@@ -47,10 +50,10 @@ function parseAgentJson(output: string) {
   return InterviewResponseSchema.parse(JSON.parse(candidate))
 }
 
-export function sanitizeInterviewResponse(output: string) {
+export function sanitizeInterviewResponse(output: string, focusDocumentType?: InterviewInput['focusDocumentType']) {
   const parsed = parseAgentJson(output)
   const fieldMap = new Map(documentDefinitions.map((definition) => [definition.type, new Set(definition.fields.map((field) => field.id))]))
-  return { ...parsed, patches: parsed.patches.map((patch) => ({ ...patch, fields: Object.fromEntries(Object.entries(patch.fields).filter(([key]) => fieldMap.get(patch.documentType)?.has(key))) })).filter((patch) => Object.keys(patch.fields).length > 0) }
+  return { ...parsed, patches: parsed.patches.filter((patch) => !focusDocumentType || patch.documentType === focusDocumentType).map((patch) => ({ ...patch, fields: Object.fromEntries(Object.entries(patch.fields).filter(([key]) => fieldMap.get(patch.documentType)?.has(key))) })).filter((patch) => Object.keys(patch.fields).length > 0) }
 }
 
 export function sanitizeProjectInterviewResponse(output: string) {
@@ -97,12 +100,12 @@ export async function runInterview(project: Workspace, documents: WorkspaceDocum
   const prompt = promptFor(project, documents, input)
   if (input.agentId === 'codex') {
     const stdout = await runWithInput(found.command, ['exec', '--ephemeral', '--sandbox', 'read-only', '--skip-git-repo-check', '--color', 'never', '-'], prompt)
-    const result = sanitizeInterviewResponse(stdout)
+    const result = sanitizeInterviewResponse(stdout, input.focusDocumentType)
     return { ...result, workingDocument: result.workingDocument || input.workingDocument }
   }
   const stdout = await runWithInput(found.command, ['--print', '--output-format', 'json', '--tools', '', '--no-session-persistence'], prompt)
   const envelope = JSON.parse(stdout) as { result?: string }
-  const result = sanitizeInterviewResponse(envelope.result ?? stdout)
+  const result = sanitizeInterviewResponse(envelope.result ?? stdout, input.focusDocumentType)
   return { ...result, workingDocument: result.workingDocument || input.workingDocument }
 }
 

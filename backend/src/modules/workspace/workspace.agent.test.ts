@@ -16,6 +16,17 @@ test('accepts JSON returned inside a markdown fence', () => {
   assert.match(result.workingDocument, /已确认信息/)
 })
 
+test('keeps patches only for the focused document during document optimization', () => {
+  const result = sanitizeInterviewResponse(JSON.stringify({
+    reply: '已完成建议。', questions: [],
+    patches: [
+      { documentType: 'prd', fields: { goal: '完善后的目标' } },
+      { documentType: 'technical', fields: { summary: '不应保留' } },
+    ],
+  }), 'prd')
+  assert.deepEqual(result.patches, [{ documentType: 'prd', fields: { goal: '完善后的目标' } }])
+})
+
 test('accepts an incomplete project draft during creation interview', () => {
   const result = sanitizeProjectInterviewResponse(JSON.stringify({ reply: '先确认用户。', questions: ['谁会使用？'], projectDraft: { name: '客户反馈台', presets: 'admin', targetUsers: ['运营', '客服'], deliveryTier: 'business' }, workingDocument: '# 建项访谈临时文档' }))
   assert.equal(result.projectDraft.name, '客户反馈台')

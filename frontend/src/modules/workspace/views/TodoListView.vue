@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import BaseButton from '@/components/BaseButton/index.vue'
+import ProjectWorkflow from '../components/ProjectWorkflow.vue'
 import { workspaceApi } from '../api'
 import { useWorkspaceStore } from '../store'
 import type { DocumentType, TodoList } from '../types'
@@ -24,8 +24,8 @@ function openDocument(type: DocumentType) { router.push({ name:'workspace-docume
     <header class="todo-page__header">
       <button @click="openDocument('prd')">← 返回文档</button>
       <div><h1>开发 TodoList</h1><p v-if="store.currentProject">{{ store.currentProject.name }} · 根据九份产研文档实时拆分</p></div>
-      <BaseButton v-if="todoList?.ready" @click="router.push({name:'workspace-generate',params:{id:projectId}})">生成模板仓库</BaseButton>
     </header>
+    <ProjectWorkflow active="todo" />
 
     <div v-if="loading" class="state">正在拆分详细任务…</div>
     <div v-else-if="error" class="state state--error">{{ error }}</div>

@@ -5,13 +5,14 @@ import path from 'node:path'
 import test from 'node:test'
 import { generateRepository } from './workspace.generator'
 import { documentDefinitions, initialDocuments, renderMarkdown } from './workspace.documents'
+import { scoreDocument } from './workspace.document-score'
 import type { ProjectCreateInput } from './workspace.schema'
 import type { Workspace, WorkspaceDocument } from './workspace.types'
 
 const input: ProjectCreateInput = { name: '测试项目', slug: 'test-project', presets: ['admin', 'website', 'tool'], summary: '这是一个用于验证模板仓库生成过程的测试项目。', deliveryTier: 'business', targetUsers: '内部运营', painPoints: '手工创建项目目录容易遗漏必要文件。', successMetric: '一分钟内创建完整模板', mustHave: ['项目列表'], excluded: [], roles: ['管理员'], dataSensitivity: 'normal', devices: ['desktop'], expectedScale: '50 人', integrations: [] }
 const project: Workspace = { id: 'p1', name: input.name, slug: input.slug, presets: input.presets, summary: input.summary, deliveryTier: input.deliveryTier, status: 'ready', completeness: 100, createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString() }
 const contents = initialDocuments(input)
-const documents: WorkspaceDocument[] = documentDefinitions.map((definition, index) => ({ id: `d${index}`, projectId: project.id, type: definition.type, content: contents[definition.type], completeness: 100, markdown: renderMarkdown(definition.type, contents[definition.type]), updatedAt: project.updatedAt }))
+const documents: WorkspaceDocument[] = documentDefinitions.map((definition, index) => { const content = contents[definition.type]; const markdown = renderMarkdown(definition.type, content); return { id: `d${index}`, projectId: project.id, type: definition.type, content, completeness: 100, quality: scoreDocument(definition.type, content, markdown), markdown, updatedAt: project.updatedAt } })
 
 test('generates a combined multi-preset repository with product docs and a clean project skeleton', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'vibe-workbench-'))
@@ -38,6 +39,13 @@ test('generates a combined multi-preset repository with product docs and a clean
     await assert.rejects(fs.access(path.join(result.targetPath, 'backend/src/server.ts')))
     const home = await fs.readFile(path.join(result.targetPath, 'frontend/src/views/HomeView.vue'), 'utf8')
     for (const section of ['运营概览', '内容首页', '操作工作区']) assert.match(home, new RegExp(section))
+    const layout = await fs.readFile(path.join(result.targetPath, 'frontend/src/layouts/DefaultLayout.vue'), 'utf8')
+    assert.match(layout, /<script setup lang="ts">\nimport \{ RouterView \} from 'vue-router';\n<\/script>/)
+    const todo = await fs.readFile(path.join(result.targetPath, 'TODO.md'), 'utf8')
+    assert.doesNotMatch(todo, /\[object Object\]/)
+    assert.match(todo, /场景：列表查询/)
+    const backendLint = await fs.readFile(path.join(result.targetPath, 'backend/eslint.config.mjs'), 'utf8')
+    assert.match(backendLint, /tseslint\.config\(\{ ignores: \['dist\/\*\*'\] \}/)
     const agents = await fs.readFile(path.join(result.targetPath, 'AGENTS.md'), 'utf8')
     const workflow = await fs.readFile(path.join(result.targetPath, '.agents/skills/vibecoding-codex-workflow/SKILL.md'), 'utf8')
     assert.match(agents, /300 行/)
@@ -51,6 +59,17 @@ test('refuses to overwrite an existing directory', async () => {
   try {
     await fs.mkdir(path.join(root, project.slug))
     await assert.rejects(generateRepository(root, project.slug, project, documents), /already exists/)
+  } finally { await fs.rm(root, { recursive: true, force: true }) }
+})
+
+test('configures the selected GitHub or GitLab repository as origin', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'vibe-workbench-'))
+  try {
+    const remoteRepositoryUrl = 'https://github.com/example/ui-acceptance.git'
+    const result = await generateRepository(root, project.slug, project, documents, { remoteRepositoryUrl })
+    const config = await fs.readFile(path.join(result.targetPath, '.git/config'), 'utf8')
+    assert.match(config, /\[remote "origin"\]/)
+    assert.match(config, /url = https:\/\/github\.com\/example\/ui-acceptance\.git/)
   } finally { await fs.rm(root, { recursive: true, force: true }) }
 })
 
