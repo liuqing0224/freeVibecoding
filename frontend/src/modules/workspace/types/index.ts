@@ -21,7 +21,9 @@ export interface Workspace {
   updatedAt: string
 }
 export interface ProjectCreateInput { name: string; slug: string; presets: Preset[]; summary: string; deliveryTier: DeliveryTier; targetUsers: string; painPoints: string; successMetric: string; mustHave: string[]; excluded: string[]; roles: string[]; dataSensitivity: 'none' | 'normal' | 'personal' | 'sensitive'; devices: string[]; expectedScale: string; integrations: string[] }
-export interface WorkspaceDocument { id: string; projectId: string; type: DocumentType; content: Record<string, unknown>; completeness: number; markdown: string; updatedAt: string }
+export interface DocumentQuality { score: number; level: '待补充' | '待完善' | '合格' | '良好' | '优秀'; dimensions: Array<{ label: string; score: number; maxScore: number }>; suggestions: string[] }
+export interface WorkspaceDocument { id: string; projectId: string; type: DocumentType; content: Record<string, unknown>; completeness: number; quality: DocumentQuality; markdown: string; updatedAt: string }
+export interface TechnicalSyncResult { sourceUpdatedAt: string; documents: WorkspaceDocument[] }
 export interface DocumentUpdateInput { content?: Record<string, unknown>; markdown?: string }
 export interface Readiness { ready: boolean; completeness: number; missing: Array<{ documentType: DocumentType; fieldId: string; label: string }>; targetPath: string; suggestedDirectoryName: string }
 export type TodoCategory = 'planning' | 'data' | 'api' | 'frontend' | 'engineering' | 'quality' | 'release'
@@ -29,9 +31,12 @@ export interface TodoItem { id: string; category: TodoCategory; title: string; d
 export interface TodoGroup { category: TodoCategory; title: string; items: TodoItem[] }
 export interface TodoList { ready: boolean; completeness: number; missing: Array<{ documentType: DocumentType; fieldId: string; label: string }>; groups: TodoGroup[]; total: number; markdown: string }
 export interface Generation { id: string; projectId: string; targetPath: string; presets: Preset[]; status: 'success' | 'failed'; commitHash: string | null; errorMessage: string | null; createdAt: string }
+export type RepositoryProvider = 'local' | 'github' | 'gitlab'
+export interface GenerateInput { directoryName?: string; repositoryProvider: RepositoryProvider; remoteRepositoryUrl?: string }
 export type CodingAgentId = 'codex' | 'claude'
 export interface CodingAgent { id: CodingAgentId; name: string; available: boolean; version: string | null; path: string | null }
 export interface InterviewMessage { role: 'user' | 'assistant'; content: string }
+export interface InterviewInput { agentId: CodingAgentId; focusDocumentType?: DocumentType; message: string; history: InterviewMessage[]; workingDocument: string }
 export interface DocumentPatch { documentType: DocumentType; fields: Record<string, unknown> }
 export interface InterviewResponse { reply: string; questions: string[]; patches: DocumentPatch[]; workingDocument: string }
 export interface ProjectInterviewResponse { reply: string; questions: string[]; projectDraft: Partial<ProjectCreateInput>; workingDocument: string }

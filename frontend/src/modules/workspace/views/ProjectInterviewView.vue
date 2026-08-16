@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/BaseButton/index.vue'
 import { workspaceApi } from '../api'
 import InterviewMessageCard from '../components/InterviewMessage.vue'
+import { clearCreationInterviewDraft, creationInterviewDraftStorageKey, creationInterviewStorageKey } from '../composables/useCreationInterviewDraft'
 import { useWorkspaceStore } from '../store'
 import type { CodingAgent, CodingAgentId, InterviewMessage, ProjectCreateInput } from '../types'
 
@@ -11,8 +12,8 @@ const router = useRouter(); const store = useWorkspaceStore(); const agents = re
 const messages = ref<InterviewMessage[]>([{ role:'assistant', content:'先告诉我你的业务想法：想为谁解决什么问题？不需要考虑技术。' }])
 const draft = reactive<Partial<ProjectCreateInput>>({ deliveryTier:'business', dataSensitivity:'normal', devices:['desktop'], excluded:[], integrations:[] })
 const input = ref(''); const sending = ref(false); const creating = ref(false); const error = ref('')
-const storageKey='workspace-creation-interview';const draftStorageKey=`${storageKey}-draft`;const workingDocument=ref(localStorage.getItem(storageKey)??'')
-try { Object.assign(draft, JSON.parse(localStorage.getItem(draftStorageKey) ?? '{}')) } catch { localStorage.removeItem(draftStorageKey) }
+const workingDocument=ref(localStorage.getItem(creationInterviewStorageKey)??'')
+try { Object.assign(draft, JSON.parse(localStorage.getItem(creationInterviewDraftStorageKey) ?? '{}')) } catch { localStorage.removeItem(creationInterviewDraftStorageKey) }
 const availableAgents = computed(() => agents.value.filter((agent) => agent.available))
 const required = computed(() => [
   ['项目名称', draft.name && draft.name.length >= 2], ['仓库目录名', draft.slug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(draft.slug)],
@@ -25,8 +26,8 @@ const completion = computed(() => Math.round(required.value.filter(([,value]) =>
 const labels: Record<string,string> = { admin:'后台管理', website:'官网 / H5', tool:'业务工具', demo:'演示版', business:'业务版', commercial:'商用版', none:'不保存业务数据', normal:'普通业务数据', personal:'个人信息', sensitive:'高敏感数据', desktop:'桌面端', mobile:'手机端' }
 
 onMounted(async()=>{agents.value=await workspaceApi.agents();agentId.value=availableAgents.value[0]?.id??'codex'})
-async function send(){const text=input.value.trim();if(!text||sending.value)return;const history=messages.value.slice(-20);messages.value.push({role:'user',content:text});input.value='';sending.value=true;error.value='';try{const result=await workspaceApi.projectInterview(agentId.value,text,history,{...draft},workingDocument.value);Object.assign(draft,result.projectDraft);workingDocument.value=result.workingDocument;localStorage.setItem(storageKey,workingDocument.value);localStorage.setItem(draftStorageKey,JSON.stringify(draft));const questions=result.questions.length?`\n\n接下来请确认：\n${result.questions.map(item=>`- ${item}`).join('\n')}`:'';messages.value.push({role:'assistant',content:`${result.reply}${questions}`})}catch(e){error.value=(e as Error).message}finally{sending.value=false}}
-async function create(){if(!ready.value)return;creating.value=true;error.value='';try{const project=await store.createProject(draft as ProjectCreateInput);localStorage.setItem(`workspace-project-interview-${project.id}`,workingDocument.value);localStorage.removeItem(storageKey);localStorage.removeItem(draftStorageKey);await router.push({name:'workspace-interview',params:{id:project.id}})}catch(e){error.value=(e as Error).message}finally{creating.value=false}}
+async function send(){const text=input.value.trim();if(!text||sending.value)return;const history=messages.value.slice(-20);messages.value.push({role:'user',content:text});input.value='';sending.value=true;error.value='';try{const result=await workspaceApi.projectInterview(agentId.value,text,history,{...draft},workingDocument.value);Object.assign(draft,result.projectDraft);workingDocument.value=result.workingDocument;localStorage.setItem(creationInterviewStorageKey,workingDocument.value);localStorage.setItem(creationInterviewDraftStorageKey,JSON.stringify(draft));const questions=result.questions.length?`\n\n接下来请确认：\n${result.questions.map(item=>`- ${item}`).join('\n')}`:'';messages.value.push({role:'assistant',content:`${result.reply}${questions}`})}catch(e){error.value=(e as Error).message}finally{sending.value=false}}
+async function create(){if(!ready.value)return;creating.value=true;error.value='';try{const project=await store.createProject(draft as ProjectCreateInput);localStorage.setItem(`workspace-project-interview-${project.id}`,workingDocument.value);clearCreationInterviewDraft();await router.push({name:'workspace-interview',params:{id:project.id}})}catch(e){error.value=(e as Error).message}finally{creating.value=false}}
 const display=(value:unknown)=>Array.isArray(value)?value.map(item=>labels[String(item)]??item).join('、'):labels[String(value)]??String(value??'')
 const draftValue=(label:string)=>({项目名称:draft.name,仓库目录名:draft.slug,项目类型:draft.presets,项目摘要:draft.summary,目标用户:draft.targetUsers,当前痛点:draft.painPoints,成功指标:draft.successMetric,首版功能:draft.mustHave,用户角色:draft.roles,目标设备:draft.devices,预计规模:draft.expectedScale} as Record<string,unknown>)[label]
 </script>

@@ -4,15 +4,17 @@ import { useRouter } from 'vue-router'
 import BaseButton from '@/components/BaseButton/index.vue'
 import BaseEmpty from '@/components/BaseEmpty/index.vue'
 import { useWorkspaceStore } from '../store'
+import { clearCreationInterviewDraft } from '../composables/useCreationInterviewDraft'
 
 const store = useWorkspaceStore(); const router = useRouter()
 onMounted(() => store.loadProjects())
 async function remove(id: string) { if (confirm('只删除工作台中的项目记录，已生成的本机目录不会删除。继续吗？')) await store.removeProject(id) }
+async function startProject() { clearCreationInterviewDraft(); await router.push({ name: 'workspace-new' }) }
 </script>
 
-<template><section class="projects"><header class="projects__header"><div><h1>产研项目</h1><p>从业务想法到可运行模板仓库。</p></div><BaseButton @click="router.push({ name: 'workspace-new' })">新建项目</BaseButton></header>
+<template><section class="projects"><header class="projects__header"><div><h1>产研项目</h1><p>从业务想法到可运行模板仓库。</p></div><BaseButton @click="startProject">新建项目</BaseButton></header>
   <div v-if="store.loading" class="state">正在加载…</div><div v-else-if="store.error" class="state state--error">{{ store.error }}</div>
-  <BaseEmpty v-else-if="store.projects.length === 0" description="还没有项目。创建第一个产研模板。"><BaseButton @click="router.push({ name: 'workspace-new' })">新建项目</BaseButton></BaseEmpty>
+  <BaseEmpty v-else-if="store.projects.length === 0" description="还没有项目。创建第一个产研模板。"><BaseButton @click="startProject">新建项目</BaseButton></BaseEmpty>
   <div v-else class="projects__table"><div class="projects__row projects__row--head"><span>项目</span><span>类型</span><span>文档完整度</span><span>状态</span><span></span></div>
     <div v-for="project in store.projects" :key="project.id" class="projects__row"><button class="project-name" @click="router.push({ name:'workspace-documents', params:{ id:project.id, type:'prd' } })"><strong>{{ project.name }}</strong><small>{{ project.summary }}</small></button><span>{{ project.presets.map(item => ({admin:'后台管理',website:'官网 / H5',tool:'业务工具'}[item])).join('、') }}</span><span><i><b :style="{width:`${project.completeness}%`}"></b></i>{{ project.completeness }}%</span><span>{{ project.status === 'generated' ? '已生成' : '草稿' }}</span><span class="actions"><button @click="router.push({ name:'workspace-documents', params:{id:project.id,type:'prd'} })">编辑</button><button @click="router.push({ name:'workspace-generate', params:{id:project.id} })">生成</button><button class="danger" @click="remove(project.id)">删除</button></span></div>
   </div></section></template>

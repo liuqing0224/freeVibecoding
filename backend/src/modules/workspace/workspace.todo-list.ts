@@ -9,6 +9,12 @@ const prefixes: Record<Category, string> = { planning: 'PLAN', data: 'DATA', api
 const documentTitles: Record<WorkspaceDocument['type'], string> = { prd: 'PRD 产品需求', ux: '交互与页面说明', technical: '技术方案', database: '数据库设计', api: 'API 接口', development: '开发实施计划', test: '测试与业务验收', release: '上线发布方案', changelog: '迭代、变更与问题' }
 
 function rows(content: Record<string, unknown>, field: string): Row[] { return Array.isArray(content[field]) ? (content[field] as Row[]) : [] }
+const fieldLabels: Record<string, string> = { asset: '保护对象', threat: '风险', control: '控制措施', verification: '验证', scenario: '场景', metric: '指标', scale: '规模', target: '目标', approach: '实现策略', environment: '环境', purpose: '用途', data: '数据', config: '配置', deployment: '部署方式' }
+function describe(value: unknown): string {
+  if (Array.isArray(value)) return value.map(describe).filter(Boolean).join(' / ')
+  if (value && typeof value === 'object') return Object.entries(value as Row).filter(([, item]) => item !== '' && item != null).map(([key, item]) => `${fieldLabels[key] ?? key}：${String(item)}`).join('；')
+  return String(value ?? '').trim()
+}
 
 export function buildTodoList(documents: WorkspaceDocument[]): { groups: TodoGroup[]; total: number; markdown: string } {
   const byType = new Map(documents.map((document) => [document.type, document]))
@@ -30,7 +36,10 @@ export function buildTodoList(documents: WorkspaceDocument[]): { groups: TodoGro
   const ux = byType.get('ux')?.content ?? {}
   for (const row of rows(ux, 'pages')) add('frontend', `实现页面：${row.name || '未命名页面'}`, `入口：${row.entry || '待确认'}；核心任务：${row.task || '待确认'}`, '页面主流程及加载、空数据、成功、失败、无权限状态均可验证', 'ux', '页面清单')
   const technical = byType.get('technical')?.content ?? {}
-  for (const [field, label, sourceField] of [['security', '落实安全与权限方案', '安全与权限'], ['performance', '落实性能、稳定性与兼容方案', '性能、稳定性与兼容'], ['deployment', '配置开发、测试、预发和生产环境', '环境与部署'], ['rollback', '验证技术风险与回退方案', '风险与回退']] as const) if (technical[field]) add('engineering', label, String(technical[field]), `${label}有代码、配置或验证证据`, 'technical', sourceField)
+  for (const [field, label, sourceField] of [['securityModel', '落实安全与权限方案', '安全与权限'], ['performance', '落实性能、稳定性与兼容方案', '性能、稳定性与兼容'], ['environments', '配置开发、测试、预发和生产环境', '环境与部署'], ['releaseRollback', '验证技术风险与回退方案', '风险与回退']] as const) {
+    const detail = describe(technical[field])
+    if (detail) add('engineering', label, detail, `${label}有代码、配置或验证证据`, 'technical', sourceField)
+  }
   const test = byType.get('test')?.content ?? {}
   for (const row of rows(test, 'cases')) add('quality', `验收用例：${row.requirement || '未命名需求'}`, `步骤：${row.steps || '待补充'}`, String(row.expected || '结果符合预期'), 'test', '测试用例')
   const changelog = byType.get('changelog')?.content ?? {}

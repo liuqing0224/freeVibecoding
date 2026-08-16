@@ -70,16 +70,27 @@ export const WorkspaceSchema = z.object({
 export const ProjectSchema = WorkspaceSchema
 
 export const DocumentContentSchema = z.record(z.unknown())
+export const DocumentQualitySchema = z.object({
+  score: z.number().int().min(0).max(100),
+  level: z.enum(['待补充', '待完善', '合格', '良好', '优秀']),
+  dimensions: z.array(z.object({ label: z.string(), score: z.number().int(), maxScore: z.number().int() })),
+  suggestions: z.array(z.string()),
+})
 export const WorkspaceDocumentSchema = z.object({
   id: z.string(), projectId: z.string(), type: DocumentTypeSchema,
   content: DocumentContentSchema, completeness: z.number().int(),
-  markdown: z.string(), updatedAt: z.string(),
+  quality: DocumentQualitySchema, markdown: z.string(), updatedAt: z.string(),
 })
 export const DocumentUpdateSchema = z.object({
   content: DocumentContentSchema.optional(),
   markdown: z.string().max(500_000).optional(),
 }).refine((input) => input.content !== undefined || input.markdown !== undefined, {
   message: 'Provide content or markdown',
+})
+
+export const TechnicalSyncSchema = z.object({
+  sourceUpdatedAt: z.string(),
+  documents: z.array(WorkspaceDocumentSchema),
 })
 
 export const ReadinessSchema = z.object({
@@ -98,7 +109,17 @@ export const GenerationSchema = z.object({
   status: z.enum(['success', 'failed']), commitHash: z.string().nullable(),
   errorMessage: z.string().nullable(), createdAt: z.string(),
 })
-export const GenerateInputSchema = z.object({ directoryName: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional() })
+export const RepositoryProviderSchema = z.enum(['local', 'github', 'gitlab'])
+export const GenerateInputSchema = z.object({
+  directoryName: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
+  repositoryProvider: RepositoryProviderSchema.default('local'),
+  remoteRepositoryUrl: z.string().trim().max(2000).optional(),
+}).superRefine((input, context) => {
+  if (input.repositoryProvider === 'local') return
+  if (!input.remoteRepositoryUrl || !/^(https?:\/\/|ssh:\/\/|git@)[^\s]+$/.test(input.remoteRepositoryUrl)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['remoteRepositoryUrl'], message: 'GitHub or GitLab repository URL is required' })
+  }
+})
 
 export const CodingAgentIdSchema = z.enum(['codex', 'claude'])
 export const CodingAgentSchema = z.object({
@@ -112,6 +133,7 @@ export const InterviewMessageSchema = z.object({ role: z.enum(['user', 'assistan
 export const DocumentPatchSchema = z.object({ documentType: DocumentTypeSchema, fields: z.record(z.unknown()) })
 export const InterviewInputSchema = z.object({
   agentId: CodingAgentIdSchema,
+  focusDocumentType: DocumentTypeSchema.optional(),
   message: z.string().trim().min(1).max(8000),
   history: z.array(InterviewMessageSchema).max(30).default([]),
   workingDocument: z.string().max(30000).default(''),

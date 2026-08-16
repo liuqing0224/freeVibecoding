@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/BaseButton/index.vue'
 import { useWorkspaceStore } from '../store'
+import { clearCreationInterviewDraft } from '../composables/useCreationInterviewDraft'
 import type { DeliveryTier, Preset, ProjectCreateInput } from '../types'
 
 const store = useWorkspaceStore(); const router = useRouter(); const step = ref(1); const submitting = ref(false); const error = ref('')
@@ -11,7 +12,7 @@ onMounted(() => store.loadBootstrap())
 function slugify() { if (!form.slug) form.slug = form.name.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') }
 const valid = computed(() => step.value === 1 ? form.name.length >= 2 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(form.slug) && form.presets.length > 0 && form.summary.length >= 10 : step.value === 2 ? form.targetUsers.length >= 2 && form.painPoints.length >= 5 && form.successMetric.length >= 3 && form.mustHave.trim().length > 0 : form.roles.trim().length > 0 && form.expectedScale.trim().length > 0)
 const split = (value:string) => value.split(/[\n,，]/).map(item=>item.trim()).filter(Boolean)
-async function submit(){submitting.value=true;error.value='';try{const project=await store.createProject({...form,mustHave:split(form.mustHave),excluded:split(form.excluded),roles:split(form.roles),integrations:split(form.integrations)});await router.push({name:'workspace-documents',params:{id:project.id,type:'prd'}})}catch(e){error.value=(e as Error).message}finally{submitting.value=false}}
+async function submit(){submitting.value=true;error.value='';try{const project=await store.createProject({...form,mustHave:split(form.mustHave),excluded:split(form.excluded),roles:split(form.roles),integrations:split(form.integrations)});clearCreationInterviewDraft();await router.push({name:'workspace-documents',params:{id:project.id,type:'prd'}})}catch(e){error.value=(e as Error).message}finally{submitting.value=false}}
 </script>
 
 <template><section class="wizard"><header><button @click="router.back()">← 返回</button><div><span>步骤 {{ step }} / 3</span><h1>创建产研项目</h1></div></header><div class="steps"><b v-for="item in 3" :key="item" :class="{active:item<=step}"></b></div>

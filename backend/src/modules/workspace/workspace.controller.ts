@@ -18,6 +18,7 @@ export const workspaceController = {
   async documents(req: FastifyRequest, reply: FastifyReply) { const { id } = IdParamSchema.parse(req.params); return reply.send(success(await workspaceService.documents(id))) },
   async document(req: FastifyRequest, reply: FastifyReply) { const { id, type } = DocumentParamSchema.parse(req.params); return reply.send(success(await workspaceService.document(id, type))) },
   async updateDocument(req: FastifyRequest, reply: FastifyReply) { const { id, type } = DocumentParamSchema.parse(req.params); const input = DocumentUpdateSchema.parse(req.body); return reply.send(success(await workspaceService.updateDocument(id, type, input), 'saved')) },
+  async syncTechnicalDocuments(req: FastifyRequest, reply: FastifyReply) { const { id } = IdParamSchema.parse(req.params); return reply.send(success(await workspaceService.syncTechnicalDocuments(id), 'synced')) },
   async readiness(req: FastifyRequest, reply: FastifyReply) { const { id } = IdParamSchema.parse(req.params); return reply.send(success(await workspaceService.readiness(id))) },
   async todoList(req: FastifyRequest, reply: FastifyReply) { const { id } = IdParamSchema.parse(req.params); return reply.send(success(await workspaceService.todoList(id))) },
   async generate(req: FastifyRequest, reply: FastifyReply) { const { id } = IdParamSchema.parse(req.params); const input = GenerateInputSchema.parse(req.body ?? {}); return reply.status(201).send(success(await workspaceService.generate(id, input), 'generated')) },

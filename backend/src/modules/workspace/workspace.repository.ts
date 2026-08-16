@@ -5,6 +5,7 @@ import { nanoid } from '@/utils/id'
 import { PresetSchema, type DocumentType, type DocumentUpdateInput, type Preset, type ProjectCreateInput, type ProjectUpdateInput } from './workspace.schema'
 import type { DocumentRow, Generation, GenerationRow, ProjectRow, Workspace, WorkspaceDocument } from './workspace.types'
 import { documentCompleteness, initialDocuments, renderMarkdown } from './workspace.documents'
+import { scoreDocument } from './workspace.document-score'
 
 const iso = (value: string | Date) => value instanceof Date ? value.toISOString() : value
 function parsePresets(value: string): Preset[] {
@@ -12,7 +13,7 @@ function parsePresets(value: string): Preset[] {
 }
 function zPresets(value: unknown): Preset[] { return PresetSchema.array().min(1).parse(value) }
 function toProject(row: ProjectRow, completeness = 0): Workspace { return { id: row.id, name: row.name, slug: row.slug, presets: parsePresets(row.preset), summary: row.summary, deliveryTier: row.delivery_tier, status: row.status, completeness, createdAt: iso(row.created_at), updatedAt: iso(row.updated_at) } }
-function toDocument(row: DocumentRow): WorkspaceDocument { const content = JSON.parse(row.content_json) as Record<string, unknown>; return { id: row.id, projectId: row.project_id, type: row.type, content, completeness: row.completeness, markdown: row.markdown_content ?? renderMarkdown(row.type, content), updatedAt: iso(row.updated_at) } }
+function toDocument(row: DocumentRow): WorkspaceDocument { const content = JSON.parse(row.content_json) as Record<string, unknown>; const markdown = row.markdown_content ?? renderMarkdown(row.type, content); return { id: row.id, projectId: row.project_id, type: row.type, content, completeness: row.completeness, quality: scoreDocument(row.type, content, markdown), markdown, updatedAt: iso(row.updated_at) } }
 function toGeneration(row: GenerationRow): Generation { return { id: row.id, projectId: row.project_id, targetPath: row.target_path, presets: parsePresets(row.preset), status: row.status, commitHash: row.commit_hash, errorMessage: row.error_message, createdAt: iso(row.created_at) } }
 
 export const workspaceRepository = {

@@ -5,6 +5,7 @@ import { runInterview, runProjectInterview, scanCodingAgents } from './workspace
 import { generateRepository } from './workspace.generator'
 import { workspaceRepository } from './workspace.repository'
 import { buildTodoList } from './workspace.todo-list'
+import { buildTechnicalDocumentUpdates, technicalDocumentTypes } from './workspace.prd-sync'
 import type { DocumentType, DocumentUpdateInput, GenerateInput, ProjectCreateInput, ProjectUpdateInput } from './workspace.schema'
 
 async function projectOrThrow(id: string) { const project = await workspaceRepository.find(id); if (!project) throw NotFoundError('project'); return project }
@@ -29,7 +30,21 @@ export const workspaceService = {
   async remove(id: string) { await projectOrThrow(id); await workspaceRepository.remove(id); return { id } },
   async documents(id: string) { await projectOrThrow(id); return workspaceRepository.documents(id) },
   async document(id: string, type: DocumentType) { await projectOrThrow(id); const doc = await workspaceRepository.document(id, type); if (!doc) throw NotFoundError('document'); return doc },
-  async updateDocument(id: string, type: DocumentType, input: DocumentUpdateInput) { await this.document(id, type); return (await workspaceRepository.updateDocument(id, type, input))! },
+  async updateDocument(id: string, type: DocumentType, input: DocumentUpdateInput) {
+    await this.document(id, type)
+    const saved = (await workspaceRepository.updateDocument(id, type, input))!
+    if (type === 'prd') await this.syncTechnicalDocuments(id)
+    return saved
+  },
+  async syncTechnicalDocuments(id: string) {
+    const prd = await this.document(id, 'prd')
+    const currentDocuments = await workspaceRepository.documents(id)
+    const current = Object.fromEntries(currentDocuments.map((document) => [document.type, document.content]))
+    const updates = buildTechnicalDocumentUpdates(prd.content, current)
+    const documents = []
+    for (const type of technicalDocumentTypes) documents.push((await workspaceRepository.updateDocument(id, type, { content: updates[type] }))!)
+    return { sourceUpdatedAt: prd.updatedAt, documents }
+  },
   async readiness(id: string, directoryName?: string) {
     const project = await projectOrThrow(id); const documents = await workspaceRepository.documents(id)
     const missing = documents.flatMap((document) => {
@@ -53,7 +68,7 @@ export const workspaceService = {
     const settings = await workspaceRepository.settings(); const directoryName = input.directoryName ?? project.slug
     if (readiness.suggestedDirectoryName !== directoryName) throw ConflictError(`Directory exists. Suggested name: ${readiness.suggestedDirectoryName}`)
     try {
-      const generated = await generateRepository(settings.outputRoot, directoryName, project, await workspaceRepository.documents(id))
+      const generated = await generateRepository(settings.outputRoot, directoryName, project, await workspaceRepository.documents(id), { remoteRepositoryUrl: input.remoteRepositoryUrl })
       await workspaceRepository.update(id, { status: 'generated' })
       return workspaceRepository.recordGeneration({ projectId: id, targetPath: generated.targetPath, presets: project.presets, status: 'success', commitHash: generated.commitHash, errorMessage: null })
     } catch (error) {

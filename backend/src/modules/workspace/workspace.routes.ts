@@ -16,6 +16,7 @@ export async function workspaceRoutes(app: FastifyInstance) {
   app.post('/projects/:id/interview', workspaceController.interview)
   app.get('/projects/:id/documents/:type', workspaceController.document)
   app.patch('/projects/:id/documents/:type', workspaceController.updateDocument)
+  app.post('/projects/:id/sync-technical-documents', workspaceController.syncTechnicalDocuments)
   app.get('/projects/:id/readiness', workspaceController.readiness)
   app.get('/projects/:id/todo-list', workspaceController.todoList)
   app.post('/projects/:id/generate', workspaceController.generate)

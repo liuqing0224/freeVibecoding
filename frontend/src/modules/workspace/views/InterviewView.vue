@@ -5,13 +5,18 @@ import BaseButton from '@/components/BaseButton/index.vue'
 import { workspaceApi } from '../api'
 import InterviewMessageCard from '../components/InterviewMessage.vue'
 import { useWorkspaceStore } from '../store'
-import type { CodingAgent, CodingAgentId, DocumentPatch, InterviewMessage } from '../types'
+import type { CodingAgent, CodingAgentId, DocumentPatch, DocumentType, InterviewMessage } from '../types'
 
 const route = useRoute(); const router = useRouter(); const store = useWorkspaceStore()
 const projectId = String(route.params.id); const agents = ref<CodingAgent[]>([]); const agentId = ref<CodingAgentId>('codex')
-const messages = ref<InterviewMessage[]>([{ role: 'assistant', content: '项目已经创建，建项信息已用于初始化九份文档。接下来请继续补充业务规则、页面流程或验收要求，我会逐轮整理并给出待确认修改。' }])
+const validTypes: DocumentType[] = ['prd', 'ux', 'technical', 'database', 'api', 'development', 'test', 'release', 'changelog']
+const requestedType = String(route.query.document ?? '') as DocumentType
+const focusType = ref<DocumentType | undefined>(validTypes.includes(requestedType) ? requestedType : undefined)
+const focusedDefinition = computed(() => store.bootstrap?.documentDefinitions.find((item) => item.type === focusType.value))
+const messages = ref<InterviewMessage[]>([{ role: 'assistant', content: focusType.value ? '我已经读取当前正式文档、结构化内容和质量评分。请告诉我希望继续完善的业务内容，我会基于现有内容追问并给出待确认修改。' : '项目已经创建，建项信息已用于初始化九份文档。接下来请继续补充业务规则、页面流程或验收要求，我会逐轮整理并给出待确认修改。' }])
 const input = ref(''); const sending = ref(false); const applying = ref(false); const error = ref(''); const patches = ref<DocumentPatch[]>([])
-const storageKey=`workspace-project-interview-${projectId}`;const workingDocument=ref(localStorage.getItem(storageKey)??'')
+const storageKey = focusType.value ? `workspace-project-interview-${projectId}-${focusType.value}` : `workspace-project-interview-${projectId}`
+const workingDocument = ref(localStorage.getItem(storageKey) ?? '')
 const availableAgents = computed(() => agents.value.filter((agent) => agent.available))
 
 onMounted(async () => {
@@ -24,7 +29,7 @@ async function send() {
   const message = input.value.trim(); if (!message || sending.value) return
   const history = messages.value.slice(-20); messages.value.push({ role: 'user', content: message }); input.value = ''; sending.value = true; error.value = ''
   try {
-    const result = await workspaceApi.interview(projectId, agentId.value, message, history, workingDocument.value)
+    const result = await workspaceApi.interview(projectId, agentId.value, message, history, workingDocument.value, focusType.value)
     workingDocument.value = result.workingDocument; localStorage.setItem(storageKey, workingDocument.value)
     const questionText = result.questions.length ? `\n\n还需要确认：\n${result.questions.map((item) => `- ${item}`).join('\n')}` : ''
     messages.value.push({ role: 'assistant', content: `${result.reply}${questionText}` }); patches.value = result.patches
@@ -39,19 +44,19 @@ async function applyPatches() {
       if (current) await store.saveDocument(projectId, patch.documentType, { content: { ...current.content, ...patch.fields } })
     }
     patches.value = []; await store.loadProject(projectId)
-    messages.value.push({ role: 'assistant', content: '建议已写入文档，你可以继续补充业务信息。' })
+    messages.value.push({ role: 'assistant', content: `建议已写入${focusedDefinition.value?.title ?? '文档'}，你可以继续基于最新内容优化。` })
   } catch (e) { error.value = (e as Error).message } finally { applying.value = false }
 }
 </script>
 
 <template>
   <section v-if="store.currentProject" class="interview">
-    <header><button @click="router.push({ name:'workspace-documents', params:{ id:projectId, type:'prd' } })">← 返回文档</button><div><h1>AI 需求访谈</h1><p>{{ store.currentProject.name }} · Agent 只提出建议，确认后才会更新文档。</p></div></header>
+    <header><button @click="router.push({ name:'workspace-documents', params:{ id:projectId, type:focusType??'prd' } })">← 返回文档</button><div><h1>{{ focusedDefinition ? `用 Agent 优化${focusedDefinition.title}` : 'AI 需求访谈' }}</h1><p>{{ store.currentProject.name }} · 基于当前正式文档继续沟通，确认后才会写入。</p></div></header>
     <div class="interview__layout">
       <main>
         <div class="agent-select"><label>本机 Agent<select v-model="agentId" :disabled="sending"><option v-for="agent in availableAgents" :key="agent.id" :value="agent.id">{{ agent.name }} · {{ agent.version }}</option></select></label><span v-if="!availableAgents.length">未发现可用 Coding Agent</span></div>
         <div class="messages"><InterviewMessageCard v-for="(message,index) in messages" :key="index" :message="message"/><p v-if="sending" class="thinking">正在整理并判断下一步问题…</p></div>
-        <form @submit.prevent="send"><textarea v-model="input" rows="3" placeholder="用业务语言回答，不需要写技术方案" /><BaseButton type="submit" :disabled="!input.trim()||!availableAgents.length" :loading="sending">发送</BaseButton></form><p v-if="error" class="error">{{ error }}</p>
+        <form @submit.prevent="send"><textarea v-model="input" rows="3" :placeholder="focusType?'例如：继续完善异常流程、权限边界或验收标准':'用业务语言回答，不需要写技术方案'" /><BaseButton type="submit" :disabled="!input.trim()||!availableAgents.length" :loading="sending">发送</BaseButton></form><p v-if="error" class="error">{{ error }}</p>
       </main>
       <aside><header><h2>访谈临时文档</h2><span>自动保存</span></header><pre class="working-document">{{ workingDocument || '下一轮对话后自动生成，并持续作为 Agent 的上下文。' }}</pre><header class="patch-header"><h2>待确认修改</h2><span>{{ patches.length }} 份文档</span></header><p v-if="!patches.length" class="empty">Agent 给出的内容会先显示在这里，不会自动覆盖文档。</p><article v-for="patch in patches" :key="patch.documentType"><strong>{{ store.bootstrap?.documentDefinitions.find(item=>item.type===patch.documentType)?.title }}</strong><dl><div v-for="(value,key) in patch.fields" :key="key"><dt>{{ store.bootstrap?.documentDefinitions.find(item=>item.type===patch.documentType)?.fields.find(item=>item.id===key)?.label ?? key }}</dt><dd>{{ Array.isArray(value)?value.join('、'):String(value) }}</dd></div></dl></article><BaseButton v-if="patches.length" :loading="applying" @click="applyPatches">确认并写入文档</BaseButton></aside>
     </div>
